@@ -40,11 +40,11 @@ jobs:
         with:
           java-version: 1.8
       - name: Build with Maven
-        run: mvn clean package -DskipTests
+        run: mvn clean package -DskipTests -pl kylin-spark-project/kylin-spark-query
 
       - name: Get release
         id: get_release
-        uses: bruceadams/get-release@v1.3.2
+        uses: bruceadams/get-release@kylin4.0.x-pushdown
         env:
           GITHUB_TOKEN: ${{ github.token }}
       - name: Uploading assets...
