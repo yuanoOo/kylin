@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@kylin4.0.1-pushdown
         with:
           ref: kylin4.0.1-pushdown
       - name: Set up JDK 1.8
