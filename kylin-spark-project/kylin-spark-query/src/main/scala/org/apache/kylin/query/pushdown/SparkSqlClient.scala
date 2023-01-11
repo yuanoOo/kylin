@@ -49,7 +49,7 @@ object SparkSqlClient {
 
 		autoSetShufflePartitions(ss, df)
 
-		DFToList(ss, sql, df)
+		dfToList(ss, sql, df)
 	}
 
 	private def autoSetShufflePartitions(ss: SparkSession, df: DataFrame) = {
@@ -70,39 +70,35 @@ object SparkSqlClient {
 		}
 	}
 
-	private def DFToList(ss: SparkSession, sql: String, df: DataFrame): Pair[JList[JList[String]], JList[StructField]] = {
-		val jobGroup = Thread.currentThread.getName
-		ss.sparkContext.setJobGroup(jobGroup,
-			"Pushdown Query Id: " + QueryContextFacade.current().getQueryId, interruptOnCancel = true)
-		try {
-			val temporarySchema = df.schema.fields.zipWithIndex.map {
-				case (_, index) => s"temporary_$index"
+private def dfToList(ss: SparkSession, sql: String, df: DataFrame): Pair[JList[JList[String]], JList[StructField]] = {
+	val jobGroup = Thread.currentThread.getName
+	ss.sparkContext.setJobGroup(jobGroup,
+		"Pushdown Query Id: " + QueryContextFacade.current().getQueryId, interruptOnCancel = true)
+	try {
+		val rowList = df.collect().map(_.toSeq.map(String.valueOf).asJava).toSeq.asJava
+		val fieldList = df.schema.map(field => SparkTypeUtil.convertSparkFieldToJavaField(field)).asJava
+		val (scanRows, scanFiles, metadataTime, scanTime, scanBytes) = QueryMetricUtils.collectScanMetrics(df.queryExecution.executedPlan)
+		QueryContextFacade.current().addAndGetScannedRows(scanRows.asScala.map(Long2long(_)).sum)
+		QueryContextFacade.current().addAndGetScanFiles(scanFiles.asScala.map(Long2long(_)).sum)
+		QueryContextFacade.current().addAndGetScannedBytes(scanBytes.asScala.map(Long2long(_)).sum)
+		QueryContextFacade.current().addAndGetMetadataTime(metadataTime.asScala.map(Long2long(_)).sum)
+		QueryContextFacade.current().addAndGetScanTime(scanTime.asScala.map(Long2long(_)).sum)
+		Pair.newPair(rowList, fieldList)
+	} catch {
+		case e: Throwable =>
+			if (e.isInstanceOf[InterruptedException]) {
+				ss.sparkContext.cancelJobGroup(jobGroup)
+				logger.info("Query timeout ", e)
+				Thread.currentThread.interrupt()
+				throw new KylinTimeoutException("Query timeout after: " + KylinConfig.getInstanceFromEnv.getQueryTimeoutSeconds + "s")
 			}
-			val tempDF = df.toDF(temporarySchema: _*)
-			val columns = tempDF.schema.map(tp => col(s"`${tp.name}`").cast(StringType))
-			val frame = tempDF.select(columns: _*)
-			val rowList = frame.collect().map(_.toSeq.map(_.asInstanceOf[String]).asJava).toSeq.asJava
-			val fieldList = df.schema.map(field => SparkTypeUtil.convertSparkFieldToJavaField(field)).asJava
-			val (scanRows, scanFiles, metadataTime, scanTime, scanBytes) = QueryMetricUtils.collectScanMetrics(frame.queryExecution.executedPlan)
-			QueryContextFacade.current().addAndGetScannedRows(scanRows.asScala.map(Long2long(_)).sum)
-			QueryContextFacade.current().addAndGetScanFiles(scanFiles.asScala.map(Long2long(_)).sum)
-			QueryContextFacade.current().addAndGetScannedBytes(scanBytes.asScala.map(Long2long(_)).sum)
-			QueryContextFacade.current().addAndGetMetadataTime(metadataTime.asScala.map(Long2long(_)).sum)
-			QueryContextFacade.current().addAndGetScanTime(scanTime.asScala.map(Long2long(_)).sum)
-			Pair.newPair(rowList, fieldList)
-		} catch {
-			case e: Throwable =>
-				if (e.isInstanceOf[InterruptedException]) {
-					ss.sparkContext.cancelJobGroup(jobGroup)
-					logger.info("Query timeout ", e)
-					Thread.currentThread.interrupt()
-					throw new KylinTimeoutException("Query timeout after: " + KylinConfig.getInstanceFromEnv.getQueryTimeoutSeconds + "s")
-				}
-				else throw e
-		} finally {
-			HadoopUtil.setCurrentConfiguration(null)
-		}
+			else {
+				throw e
+			}
+	} finally {
+		HadoopUtil.setCurrentConfiguration(_)
 	}
+}
 
 }
 
