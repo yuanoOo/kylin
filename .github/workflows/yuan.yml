@@ -42,7 +42,7 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -DskipTests -pl kylin-spark-project/kylin-spark-query -am
       - name: echo release
-        run: ls ./kylin-spark-project/kylin-spark-query/
+        run: ls ./kylin-spark-project/kylin-spark-query/target/
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
