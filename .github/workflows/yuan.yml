@@ -16,7 +16,7 @@
 #
 
 # This workflow will build a Java project with Maven
-# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
+# For more information see: http://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
 
 name: refine kylin4.0.1 push-down query
 
@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: kylin-4.0.1
+          ref: kylin4.0.1-pushdown
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
         with:
