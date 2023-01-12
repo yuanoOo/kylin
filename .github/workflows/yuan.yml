@@ -43,6 +43,11 @@ jobs:
         run: mvn clean package -DskipTests -pl kylin-spark-project/kylin-spark-query -am
       - name: echo release
         run: ls ./kylin-spark-project/kylin-spark-query/target/
+      - uses: dev-drprasad/delete-tag-and-release@v0.2.0
+        with:
+          tag_name: ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
