@@ -75,7 +75,7 @@ private def dfToList(ss: SparkSession, sql: String, df: DataFrame): Pair[JList[J
 	ss.sparkContext.setJobGroup(jobGroup,
 		"Pushdown Query Id: " + QueryContextFacade.current().getQueryId, interruptOnCancel = true)
 	try {
-		val rowList = df.collect().map(_.toSeq.map(String.valueOf).asJava).toSeq.asJava
+		val rowList = df.collect().map(_.toSeq.map(col => if (col == null) "" else col.toString).asJava).toSeq.asJava
 		val fieldList = df.schema.map(field => SparkTypeUtil.convertSparkFieldToJavaField(field)).asJava
 		val (scanRows, scanFiles, metadataTime, scanTime, scanBytes) = QueryMetricUtils.collectScanMetrics(df.queryExecution.executedPlan)
 		QueryContextFacade.current().addAndGetScannedRows(scanRows.asScala.map(Long2long(_)).sum)
